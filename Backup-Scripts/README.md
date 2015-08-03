@@ -126,3 +126,20 @@ touch /etc/cron.d/backups
 ```
 
 That's about it. You've now set up a pretty complete backup strategy for your web server.
+
+## Restore
+A word about restore ;-)
+
+To restore a backup, copy the .tar.gz files into a directory and run the commands:
+
+`tar -xzpf servername-full_latest.tar.gz`
+
+`tar --incremental -xzpf servername-incremental_latest_1.tar.gz`
+
+`tar --incremental -xzpf servername-incremental_latest_2.tar.gz`
+
+and so on until all the incremental files are extracted.
+
+You then need to recreate your mysql database and users, and then you'll run:
+
+`mysql -u username -p_password database_name < dbname.servername.latest`
