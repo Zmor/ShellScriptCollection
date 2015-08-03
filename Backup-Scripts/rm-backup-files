@@ -1,0 +1,26 @@
+#!/bin/sh
+#
+# rm-backup-files removes all the hidden backup files/folders
+# ending with a tilde '~' recursively, starting in the marked
+# folder. (e.g. right-click on a folder and all files/folders get removed)
+# There is no undo function, so make sure you don't need the backups anymore.
+#
+# Version: 1.0
+# Author: Reto Hugi (http://hugi.to/blog/)
+# License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
+#
+# Dependencies:
+# This script needs Zenity to display informations. (install with "apt-get zenity")
+#
+# Changelog:
+# 2007-04-29 / Version 1.0 / initial release
+
+
+LOGFILE=`mktemp -t removed-tmp-files.XXXXXXX`
+CALLEDPATH=`echo $NAUTILUS_SCRIPT_SELECTED_URIS | sed 's_file://\(.*\)_\1_'`
+
+find $CALLEDPATH -depth -iname '*~' -exec rm -r --preserve-root '{}' \; -print > $LOGFILE
+FILECOUNT=`wc -l $LOGFILE | awk '{ print $1 }'`
+zenity --text-info --title="$FILECOUNT Files Deleted" --filename=$LOGFILE --width=600 --height=400
+rm -f $LOGFILE
+exit 0

@@ -1,0 +1,135 @@
+#!/bin/bash
+# Author: Reto Hugi http://hugi.to
+# Author : Mathieu Vilaplana <mathieu@creationgif.com>
+# Author : Matthieu MARC <matthieu.marc@wanadoo.fr>
+#
+# Copyright (C) 2005,2006  Charles Bouveyron <charles.bouveyron@free.fr>
+# 
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; either version 2
+# of the License, or (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+
+# pour l'internationalisation des messages	
+# to generate the i18n file from .po file :
+# $ msgfmt -o .locale/fr/LC_MESSAGES/nis.mo .locale/fr/LC_MESSAGES/fr.po
+export TEXTDOMAIN="nis"
+export TEXTDOMAINDIR=`dirname $0`"/.locale/"
+
+MAXCPT=50000;
+
+nb_images=0;
+selection="";
+
+txt_error="`gettext 'error'`"
+#test if a file has been selected
+if [ $# -eq 0 ]; then
+	# zenity --error --title=$txt_error --text="`gettext 'You must select at least 1 file to process'`"
+	here=`pwd`"/."
+	files=`zenity --file-selection --multiple --separator="|" --filename="$here"`"|"
+	#if $? != 0, user click on cancel button, so exit
+	if [ "$?" != 0 ] ; then
+		exit
+	fi
+	cpt=0
+	# I put all filename in $selection here because I didn't manage to put filenames with whitespace in $*
+	while [ ${#files} -gt 0 ]; do
+		f="`echo $files |cut -f1 -d'|'`"
+		isimage=`file -bi "$f" |grep -c image`
+		if [ $isimage -eq 1 ]; then
+			selection[$nb_images]=$f
+			let "nb_images++"
+		fi
+		files=`echo $files |cut -f2- -d"|"`
+		let "cpt++"
+		# only to avoid infinite loop (do not occured normaly, but nobody never know.. perhaps!)
+		if [ $cpt -gt $MAXCPT ]; then
+			shift
+		fi
+	done
+fi
+
+#===================================
+#       SELECT SIZE DIALOG
+txt_text="`gettext 'Choose which size to scale to'`"
+txt_title=$txt_text
+txt_size="`gettext 'size'`"
+
+imgsize=`zenity --title "$txt_title" --text "$txt_text" --list --radiolist --separator=" " --column="" --column="$txt_size" FALSE "160x120" FALSE "320x240" FALSE "640x480" TRUE "800x600" FALSE "1024x768" FALSE "570x0" --height=320`
+
+#if $? != 0, user click on cancel button, so exit
+if [ "$?" != 0 ] ; then
+	exit
+fi
+
+#user must select a target size
+imgsize=`echo $imgsize | sed 's/ max//g'`
+if [ ! "$imgsize" ]; then
+	zenity --error --title=$txt_error --text="`gettext 'select a target size'`"
+	# just restart myself (more user friendly I think)
+	($0 "$*")&
+	exit
+fi
+
+#transform 640x480 en 640x640 for convert to respect proportions
+himgsize=$imgsize
+val1=`echo "$imgsize" | awk -F'x' '{ print $1  }'`
+imgsize="${val1}x${val1}"
+
+#       END SELECT SIZE DIALOG
+#=========================
+
+
+#Select only images
+while [ $# -gt 0 ]; do
+	isimage=`file -bi "$1" | grep -c image` 
+	if [ $isimage -eq 1 ]; then
+		selection[$nb_images]=$1
+		let "nb_images++"
+	else
+		isdir=`file -b "$1" |grep -c directory`
+		if [ $isdir -eq 1 ]; then
+			for f in `ls -1 "$1"`; do
+				isimage=`file -bi "$1/$f" |grep -c image`
+				if [ $isimage -eq 1 ]; then
+					selection[$nb_images]="$1/$f"
+					let "nb_images++"
+				fi
+			done
+		fi
+	fi
+	shift
+done
+
+n=$nb_images
+let "n=n-1"
+(for i in `seq 0 $n`;do
+	picture=${selection[$i]}
+	img_filename=`basename "$picture"`
+	img_dirname=`dirname "$picture"`
+
+	#create directory if not exist and at least one image to process
+	if [ ! -d "$img_dirname/$himgsize"  ]; then
+		mkdir -p "$img_dirname/$himgsize"
+	fi
+
+	let "compteur += 1"
+	echo "`gettext '# Processing image'` $compteur / $nb_images $img_filename ..."
+	convert -quality 80 -resize $imgsize "$picture" "$img_dirname/$himgsize/$img_filename"
+	#convert -quality 80 -resize $imgsize "$picture" $himgsize/"$picture"
+	let "progress = compteur*100/nb_images"
+	echo $progress
+done
+) | zenity --progress --auto-close --title="`gettext 'Scaling images'`" --text="`gettext 'Processing images ...'`"  --percentage=0
+
+#(gnome-open "`dirname \"${selection[0]}\"`/$himgsize") &
+exit

@@ -1,0 +1,103 @@
+#!/bin/bash
+# Shell script to setup cmsms installations via svn
+# --------------------------------------------------------------------
+# This is a free shell script under GNU GPL version 2.0 or above
+# Copyright (C) 2004, 2005 nixCraft project
+# -------------------------------------------------------------------------
+# Visit http://hugi.to/ for more information.
+# -------------------------------------------------------------------------
+
+E_BADARGS=65
+
+if [ ! -n "$2" ]
+then
+  echo "Usage: `basename $0` [cust-dir/Domain] [SVN-Tag]"
+  echo "========================================="
+  echo "Install Process:
+1. check if cust-dir/Domain exists. If not, create it from template.
+2. cd to httpdocs of the website
+3. svn checkout http://svn.cmsmadesimple.org/svn/cmsmadesimple/tags/<new-tag> ./
+4. touch config.php / chmod 0777 config.php 
+5. if not existing: create ./tmp/cache, ./tmp/templates_c
+7. http://domain.ch/install/
+8. chmod 0644 config.php
+9. svn remove ./install
+10. rm -Rf ./install"
+  echo "========================================="
+  exit $E_BADARGS
+fi
+
+BasePath="/var/www/"
+htdocs="/httpdocs/"
+cmsmsSvnHome="http://svn.cmsmadesimple.org/svn/cmsmadesimple/tags/"
+Tag=$2
+CustDir=$1
+WorkDir="$BasePath$CustDir$htdocs"
+TemplateDir="$BasePath/0-template"
+
+echo -n "Do you want to start install cmsms at $WorkDir? [y/n]:"
+read wantInstall
+
+if [ "$wantInstall" != "y" ]
+then
+    echo "canceled"
+    exit 1
+fi
+
+if [ ! -d "$WorkDir" ]; then
+    echo "creating new customer directory"
+    cp -R $TemplateDir* $BasePath$CustDir
+fi
+
+cd $WorkDir
+echo "done."
+
+
+echo "
+***** Starting svn tasks. *****"
+svn checkout $cmsmsSvnHome$Tag ./
+echo "done."
+
+echo "
+***** Create config.php *****"
+touch ./config.php
+chmod 0777 config.php
+echo "done."
+
+echo "
+***** Create directories *****"
+mkdir ./tmp/cache
+mkdir ./tmp/templates_c
+chmod 0777 ./tmp
+chmod 0777 ./tmp/cache
+chmod 0777 ./tmp/templates_c
+chmod 0777 ./modules
+chmod 0777 ./uploads
+chmod 0777 ./uploads/images
+
+# Custom directories for files and templates
+mkdir ./uploads/files
+chmod 0777 ./uploads/files
+mkdir ./uploads/tpl
+
+echo "done."
+
+read -p "
+1. Add the new Domain to /etc/apache2/sites-available/vhosts
+2. Add the new Domain to /etc/logrotate.d/vhosts
+3. Edit Domains own apache2.config
+4. Restart Apache
+5. Add new Database via https://my.nexxon.net/phpmyadmin/
+6. Visit http://$CustDir/install/
+7. hit \[Enter\] to finish intallation
+"
+
+echo "
+***** Finish upgrade. *****"
+chmod 0644 config.php
+svn remove ./install
+rm -Rf ./install
+echo "done.
+"
+
+exit

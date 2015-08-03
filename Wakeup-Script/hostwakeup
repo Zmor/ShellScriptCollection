@@ -1,0 +1,38 @@
+#!/bin/bash
+# Wake up remote machine
+# Usage: wake HOSTNAME
+# Script relies on HOSTNAME being in /etc/hosts (or its IP resolvable)
+# and /etc/ethers (put its MAC address there)
+
+HOST=$1
+# Timeout waiting for host to bring up, in seconds
+WAITTIME=60
+# Check interval
+SLEEPTIME=4
+
+if ping -c1 -W1 $HOST >/dev/null; then
+echo "Host $HOST is already up - exiting"
+exit 0
+fi
+
+T1=`date +%s`
+echo "Waking up $HOST"
+
+# MAC address of $HOST should be in /etc/ethers now
+wakeonlan $HOST
+
+echo -n "Waiting for $HOST to come up "
+while ! ping -c1 -W1 $HOST >/dev/null; do
+echo -n '.'
+sleep $SLEEPTIME
+let C+=$SLEEPTIME
+if test $C -gt $WAITTIME; then
+echo " [FAILED]"
+exit 1
+fi
+done
+
+T2=`date +%s`
+let DT=T2-T1
+echo ' [OK] (in $DT seconds)'
+

@@ -1,0 +1,46 @@
+#!/bin/sh
+#
+# mount-unmount-iso is a nautilus script that mounts or unmounts an iso file
+# with a right-click on the particular file. The default mount point is
+# /media/iso/<filename> (folders will be created if they don't exist, yet).
+# On Ubuntu Linux the mounted file will automatically show up
+# this script
+# ending with a tilde '~' recursively, starting in the marked
+# folder. (e.g. right-click on a folder and all files/folders get removed)
+# There is no undo function, so make sure you don't need the backups anymore.
+#
+# Version: 1.0
+# Author: Reto Hugi (http://hugi.to/blog/)
+# License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
+#
+# Dependencies:
+# This script needs Zenity to display informations. (install with "apt-get zenity")
+#
+# Changelog:
+# 2007-05-06 / Version 1.0 / initial release
+
+ISOMNTDIR=/media/iso/
+
+if (gksudo -u root -k -m "Enter root password to mount/unmount ISO file." echo "getting root"); then
+    for i in `echo $*`; do
+        if (mount | grep "$i"); then
+            # disk is mounted, umount
+            if ! (sudo umount "$ISOMNTDIR$i" && sudo rmdir "$ISOMNTDIR$i"); then
+                zenity --error --text="can't umount $ISOMNTDIR$i and/or rmdir $ISOMNTDIR$i"
+                exit 1
+            fi
+            else
+            # disk isn’t currently mounted
+            if ( [ ! -d $ISOMNTDIR ] ); then
+                sudo mkdir $ISOMNTDIR
+            fi
+            if ! (sudo mkdir "$ISOMNTDIR$i" && sudo mount -o ro,loop -t iso9660 "$i" "$ISOMNTDIR$i"); then
+                zenity --error --text="can't mkdir $ISOMNTDIR$i and/or mount $i"
+                exit 1
+            fi
+        fi
+    done
+    exit 0
+else
+    exit 1
+fi

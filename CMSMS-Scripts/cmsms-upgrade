@@ -1,0 +1,81 @@
+#!/bin/bash
+#
+# Shell script to update cmsms installations via svn
+#
+# Version: 0.1
+# Author: Reto Hugi (http://hugi.to/blog/)
+# License: GPL v3 (http://www.gnu.org/licenses/gpl.html)
+#
+# Dependencies:
+# This script requires:
+# - a working svn installation :)
+#
+# Changelog:
+# 2010-01-08 / Version 0.1 / initial release
+
+E_BADARGS=65
+
+if [ ! -n "$2" ]
+then
+  echo "Usage: `basename $0` [cust-dir/Domain] [SVN-Tag]"
+  echo "========================================="
+  echo "Upgrade Process:
+1. cd to httpdocs of the website
+2. svn cleanup
+3. svn update
+4. svn switch http://svn.cmsmadesimple.org/svn/cmsmadesimple/tags/<new-tag> ./
+5. chmod 0777 config.php 
+6. if not existing: create ./tmp/cache, ./tmp/templates_c
+7. http://domain.ch/install/upgrade.php
+8. chmod 0644 config.php
+9. svn remove ./install
+10. rm -Rf ./install"
+  echo "========================================="
+  exit $E_BADARGS
+fi
+
+BasePath="/home/reto/devel/www/"
+htdocs="/test/"
+cmsmsSvnHome="http://svn.cmsmadesimple.org/svn/cmsmadesimple/tags/"
+Tag=$2
+CustDir=$1
+WorkDir="$BasePath$CustDir$htdocs"
+
+echo -n "Do you want to start upgrading $WorkDir? [y/n]:"
+read wantUpgrade
+
+if [ "$wantUpgrade" != "y" ]
+then
+    echo "canceled"
+    exit 1
+fi
+
+cd $WorkDir
+echo "done."
+
+echo "
+***** Starting svn tasks. *****"
+svn cleanup
+svn update
+svn switch $cmsmsSvnHome$Tag ./
+echo "done."
+
+echo "
+***** Make config.php writeable *****"
+chmod 0777 config.php
+echo "done."
+
+read -p "
+Visit http://$CustDir/install/upgrade.php
+"
+
+echo "
+***** Finish upgrade. *****"
+chmod 0644 config.php
+svn remove ./install
+rm -Rf ./install
+echo "done.
+"
+exit
+
+
